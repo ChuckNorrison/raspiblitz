@@ -167,7 +167,6 @@ if [ "${public_port}" = "null" ]; then
     public_port="8333"
   fi
 fi
-
 echo "INFO: bitcoind port: ${public_port}"
 
 # check if RTL web interface is installed
@@ -449,4 +448,3 @@ EOF
 
 fi
 # EOF
-
