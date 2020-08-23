@@ -87,14 +87,10 @@ else
   color_ram=${color_green}
 fi
 
-public_vpn_state="False"
 # get name of active interface with route to internet
-network_active_if=$(ip route get 255.255.255.255 | awk -- '{print $5}')
-if [ "${network_active_if}" != "tun0" ]; then
-  # fallback check if google is unreachable, maybe ip route is the best check
-  network_active_if=$(ip addr | grep -v 'lo:\|tun0' | grep 'state UP' | tr -d " " | cut -d ":" -f2 | head -n 1)
-else
-  # tun0 should be a tunneled VPN setup
+public_vpn_state="False"
+network_active_if=$(ip route get 255.255.255.255 | awk -- '{print $4}')
+if [ ${network_active_if} = "tun0" ]; then
   public_vpn_state="True"
 fi
 echo "INFO: active interface found: ${network_active_if}"
@@ -171,7 +167,8 @@ if [ "${public_port}" = "null" ]; then
     public_port="8333"
   fi
 fi
-echo "INFO: public port: ${public_port}"
+
+echo "INFO: bitcoind port: ${public_port}"
 
 # check if RTL web interface is installed
 webinterfaceInfo=""
@@ -205,20 +202,21 @@ else
   # IP address
   networkConnectionsInfo="${color_purple}${networkConnections} ${color_gray}connections"
   public_addr="${public_ip}:${public_port}"
-  # skip netcat public check for tunneled setups (i.e. OpenVPN Gateway)
-  if [ ${public_vpn_state} = "False" ]; then
-    public_check=$(nc -z -w6 ${public_ip} ${public_port} 2>/dev/null; echo $?)
-    if [ $public_check = "0" ]; then
-      public=""
-      # only set yellow/normal because netcat can only say that the port is open - not that it points to this device for sure
-      public_color="${color_amber}"
+  public_check=$(nc -z -w6 ${public_ip} ${public_port} 2>/dev/null; echo $?)
+  if [ $public_check = "0" ]; then
+    public=""
+    # only set yellow/normal because netcat can only say that the port is open - not that it points to this device for sure
+    if [ ${public_vpn_state} = "True" ]; then
+      public_color="${color_cyan}"
+      echo "INFO: VPN Setup was found"
     else
-      public=""
-      public_color="${color_red}"
+      public_color="${color_amber}"
+      echo "INFO: public check succeeded"
     fi
   else
-    public_color="${color_cyan}"
-    echo "INFO: VPN Setup was found"
+    public=""
+    public_color="${color_red}"
+    echo "DEBUG: public port ${public_port} check failed!"
   fi
 
   # DynDNS
@@ -273,27 +271,20 @@ else
   if [ ${ln_tor} -eq 1 ]; then
     ln_publicColor="${color_green}"
   else
-    # OpenVPN Tunnel without permissions for netcat
-    if [ ${public_vpn_state} = "True" ]; then
-      echo "INFO: check VPN setup for lightning network..." 
-      # only colorize if no critical error occured
-      if [ ${public_ip_match} = "True" ]; then
+    public_check=$(nc -z -w6 ${public_ip} ${ln_port} 2>/dev/null; echo $?)
+    if [ $public_check = "0" ]; then
+      if [ ${public_vpn_state} = "True" ]; then
         public=""
         public_color="${color_cyan}"
         ln_publicColor="${color_cyan}"
-        echo "INFO: ... succeeded"
+        echo "INFO: port check ${ln_port} succeeded"
       else
-        echo "DEBUG: public ip does not match"
-        ln_publicColor="${color_red}"
-      fi
-    else
-      public_check=$(nc -z -w6 ${public_ip} ${ln_port} 2>/dev/null; echo $?)
-      if [ $public_check = "0" ]; then
         # only set yellow/normal because netcat can only say that the port is open - not that it points to this device for sure
         ln_publicColor="${color_amber}"
-      else
-        ln_publicColor="${color_red}"
       fi
+    else
+      ln_publicColor="${color_red}"
+      echo "DEBUG: lnd port ${ln_port} check failed!"
     fi
   fi
 fi
