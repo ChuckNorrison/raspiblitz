@@ -23,7 +23,7 @@ if [ "$1" = "menu" ]; then
   # check if index is ready
   if [ "${isIndexed}" == "0" ]; then
     dialog --title " Blockchain Index Not Ready " --msgbox "
-The Blockchain Index is still getting build.
+The Blockchain Index is still getting built.
 ${indexInfo}
 This can take multiple hours.
       " 9 48
@@ -31,7 +31,7 @@ This can take multiple hours.
   fi
 
   # get network info
-  localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+  localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0\|enp0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
   toraddress=$(sudo cat /mnt/hdd/tor/btc-rpc-explorer/hostname 2>/dev/null)
   fingerprint=$(openssl x509 -in /mnt/hdd/app-data/nginx/tls.cert -fingerprint -noout | cut -d"=" -f2)
 
@@ -119,6 +119,10 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     cd btc-rpc-explorer
     sudo -u btcrpcexplorer git reset --hard v2.0.0
     sudo -u btcrpcexplorer npm install
+    if ! [ $? -eq 0 ]; then
+        echo "FAIL - npm install did not run correctly, aborting"
+        exit 1
+    fi
 
     # prepare .env file
     echo "# getting RPC credentials from the ${network}.conf"
@@ -199,10 +203,9 @@ After=${network}d.service
 WorkingDirectory=/home/btcrpcexplorer/btc-rpc-explorer
 ExecStart=/usr/bin/npm start
 User=btcrpcexplorer
-# Restart on failure but no more than 2 time every 10 minutes (600 seconds). Otherwise stop
+# Restart on failure but no more than default times (DefaultStartLimitBurst=5) every 10 minutes (600 seconds). Otherwise stop
 Restart=on-failure
-StartLimitIntervalSec=600
-StartLimitBurst=2
+RestartSec=600
 
 [Install]
 WantedBy=multi-user.target

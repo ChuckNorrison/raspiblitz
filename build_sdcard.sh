@@ -159,7 +159,7 @@ if [ "${baseImage}" = "raspbian" ] || [ "${baseImage}" = "dietpi" ] ; then
 fi
 
 # remove some (big) packages that are not needed
-sudo apt remove -y --purge libreoffice* oracle-java* chromium-browser nuscratch scratch sonic-pi minecraft-pi plymouth python2
+sudo apt remove -y --purge libreoffice* oracle-java* chromium-browser nuscratch scratch sonic-pi minecraft-pi plymouth python2 vlc
 sudo apt clean
 sudo apt -y autoremove
 
@@ -369,6 +369,9 @@ sudo apt install -y htop git curl bash-completion vim jq dphys-swapfile bsdmainu
 # installs bandwidth monitoring for future statistics
 sudo apt install -y vnstat
 
+# prepare for format data drive
+sudo apt install -y parted dosfstools
+
 # prepare for BTRFS data drive raid
 sudo apt install -y btrfs-progs btrfs-tools
 
@@ -443,6 +446,11 @@ echo "*** ADDING GROUPS FOR CREDENTIALS STORE ***"
 sudo /usr/sbin/groupadd --force --gid 9700 lndadmin
 sudo /usr/sbin/groupadd --force --gid 9701 lndinvoice
 sudo /usr/sbin/groupadd --force --gid 9702 lndreadonly
+sudo /usr/sbin/groupadd --force --gid 9703 lndinvoices
+sudo /usr/sbin/groupadd --force --gid 9704 lndchainnotifier
+sudo /usr/sbin/groupadd --force --gid 9705 lndsigner
+sudo /usr/sbin/groupadd --force --gid 9706 lndwalletkit
+sudo /usr/sbin/groupadd --force --gid 9707 lndrouter
 
 echo ""
 echo "*** SWAP FILE ***"
@@ -579,14 +587,14 @@ fi
 # "*** LND ***"
 ## based on https://github.com/Stadicus/guides/blob/master/raspibolt/raspibolt_40_lnd.md#lightning-lnd
 ## see LND releases: https://github.com/lightningnetwork/lnd/releases
-lndVersion="0.10.4-beta"
+lndVersion="0.11.1-beta"
 
 # olaoluwa
-PGPpkeys="https://keybase.io/roasbeef/pgp_keys.asc"
-PGPcheck="9769140D255C759B1EB77B46A96387A57CAAE94D"
+#PGPpkeys="https://keybase.io/roasbeef/pgp_keys.asc"
+#PGPcheck="9769140D255C759B1EB77B46A96387A57CAAE94D"
 # bitconner
-#PGPpkeys="https://keybase.io/bitconner/pgp_keys.asc"
-#PGPcheck="9C8D61868A7C492003B2744EE7D737B67FA592C7"
+PGPpkeys="https://keybase.io/bitconner/pgp_keys.asc"
+PGPcheck="9C8D61868A7C492003B2744EE7D737B67FA592C7"
 # Joost Jager
 #PGPpkeys="https://keybase.io/joostjager/pgp_keys.asc"
 #PGPcheck="D146D0F68939436268FA9A130E26BB61B76C4D3A"
@@ -883,13 +891,11 @@ if [ "${lcdInstalled}" == "true" ]; then
      echo "*** LCD DRIVER ***"
      echo "--> Downloading LCD Driver from Github"
      cd /home/admin/
-     sudo -u admin git clone https://github.com/goodtft/LCD-show.git
+     sudo -u admin git clone https://github.com/MrYacha/LCD-show.git
      sudo -u admin chmod -R 755 LCD-show
      sudo -u admin chown -R admin:admin LCD-show
      cd LCD-show/
-     # set comit hard to old version - that seemed to run better
-     #
-     sudo -u admin git reset --hard ce52014
+     sudo -u admin git reset --hard 53dd0bf
 
      # install xinput calibrator package
      echo "--> install xinput calibrator package"

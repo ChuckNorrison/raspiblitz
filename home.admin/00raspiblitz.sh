@@ -20,6 +20,20 @@ if [ ${isMounted} -eq 0 ] && [ ${#hddCandidate} -eq 0 ]; then
     echo "***********************************************************"
     echo "WARNING: NO HDD FOUND -> Shutdown, connect HDD and restart."
     echo "***********************************************************"
+    vagrant=$(df | grep -c "/vagrant")
+    if [ ${vagrant} -gt 0 ]; then
+      echo "To connect a HDD data disk to your VagrantVM:"
+      echo "- shutdown VM with command: off"
+      echo "- open your VirtualBox GUI and select RaspiBlitzVM"
+      echo "- change the 'mass storage' settings"
+      echo "- add a second 'Primary Slave' drive to the already existing controller"
+      echo "- close VirtualBox GUI and run: vagrant up & vagrant ssh"
+      echo "***********************************************************"
+      echo "You can either create a new dynamic VDI with around 900GB or download"
+      echo "a VDI with a presynced blockchain to speed up setup. If you dont have 900GB"
+      echo "space on your laptop you can store the VDI file on an external drive."
+      echo "***********************************************************"
+    fi
     exit
 fi
 
@@ -39,6 +53,16 @@ if [ "${state}" = "recovering" ]; then
   echo "***********************************************************"
   echo "WARNING: bootstrap still updating - close SSH, login later"
   echo "To monitor progress --> tail -n1000 -f raspiblitz.log"
+  echo "***********************************************************"
+  exit
+fi
+
+if [ "${state}" = "copysource" ]; then
+  echo "***********************************************************"
+  echo "INFO: You lost connection during copying the blockchain"
+  echo "You have the following options:"
+  echo "a) continue/check progress with command: sourcemode"
+  echo "b) return to normal mode with command: restart"
   echo "***********************************************************"
   exit
 fi
@@ -332,6 +356,9 @@ if LND was able to recover funds from your channels.
     fi
   
   fi
+
+  # check if DNS is working (if not it will trigger dialog)
+  sudo /home/admin/config.scripts/internet.dns.sh test
 
   #forward to main menu
   /home/admin/00mainMenu.sh

@@ -35,9 +35,16 @@ abcd=$1
 # 2. parameter [?newpassword]
 newPassword=$2
 
+# 4. parameter [?newpassword]
+emptyAllowed=0
+if [ "$4" == "empty-allowed" ]; then
+  emptyAllowed=1
+fi
+
 # run interactive if no further parameters
 OPTIONS=()
 if [ ${#abcd} -eq 0 ]; then
+    emptyAllowed=1
     OPTIONS+=(A "Master User Password / SSH")
     OPTIONS+=(B "RPC Password (blockchain/lnd)")
     OPTIONS+=(C "LND Wallet Password")
@@ -82,9 +89,25 @@ if [ "${abcd}" = "a" ]; then
 
     # ask user for new password A (first time)
     password1=$(whiptail --passwordbox "\nSet new Admin/SSH Password A:\n(min 8chars, 1word, chars+number, no specials)" 10 52 "" --title "Password A" --backtitle "RaspiBlitz - Setup" 3>&1 1>&2 2>&3)
+    if [ $? -eq 1 ]; then
+      if [ ${emptyAllowed} -eq 0 ]; then
+        echo "CANCEL not possible"
+        sleep 2
+      else
+        exit 1
+      fi
+    fi
 
     # ask user for new password A (second time)
     password2=$(whiptail --passwordbox "\nRe-Enter Password A:\n(This is new password to login per SSH)" 10 52 "" --title "Password A" --backtitle "RaspiBlitz - Setup" 3>&1 1>&2 2>&3)
+    if [ $? -eq 1 ]; then
+      if [ ${emptyAllowed} -eq 0 ]; then
+        echo "CANCEL not possible"
+        sleep 2
+      else
+        exit 1
+      fi
+    fi
 
     # check if passwords match
     if [ "${password1}" != "${password2}" ]; then
@@ -141,9 +164,25 @@ elif [ "${abcd}" = "b" ]; then
 
     # ask user for new password B (first time)
     password1=$(whiptail --passwordbox "\nPlease enter your RPC Password B:\n(min 8chars, 1word, chars+number, no specials)" 10 52 "" --title "Password B" --backtitle "RaspiBlitz - Setup" 3>&1 1>&2 2>&3)
+    if [ $? -eq 1 ]; then
+      if [ ${emptyAllowed} -eq 0 ]; then
+        echo "CANCEL not possible"
+        sleep 2
+      else
+        exit 1
+      fi
+    fi
 
     # ask user for new password B (second time)
     password2=$(whiptail --passwordbox "\nRe-Enter Password B:\n" 10 52 "" --title "Password B" --backtitle "RaspiBlitz - Setup" 3>&1 1>&2 2>&3)
+    if [ $? -eq 1 ]; then
+      if [ ${emptyAllowed} -eq 0 ]; then
+        echo "CANCEL not possible"
+        sleep 2
+      else
+        exit 1
+      fi
+    fi
 
     # check if passwords match
     if [ "${password1}" != "${password2}" ]; then
@@ -224,36 +263,48 @@ EOF
   if [ "${ElectRS}" == "on" ]; then
     echo "# changing the RPC password for ELECTRS"
     RPC_USER=$(cat /mnt/hdd/bitcoin/bitcoin.conf | grep rpcuser | cut -c 9-)
-    sed -i "s/^cookie = \"$RPC_USER.*\"/cookie = \"$RPC_USER:${newPassword}\"/g" /home/electrs/.electrs/config.toml 2>/dev/null
+    sudo sed -i "s/^cookie = \"$RPC_USER.*\"/cookie = \"$RPC_USER:${newPassword}\"/g" /home/electrs/.electrs/config.toml
   fi
 
   # BTC-RPC-Explorer
   if [ "${BTCRPCexplorer}" = "on" ]; then
     echo "# changing the RPC password for BTCRPCEXPLORER"
-    sed -i "s/^BTCEXP_BITCOIND_PASS=.*/BTCEXP_BITCOIND_PASS=${newPassword}/g" /home/btcrpcexplorer/.config/btc-rpc-explorer.env 2>/dev/null
-    sed -i "s/^BTCEXP_BASIC_AUTH_PASSWORD=.*/BTCEXP_BASIC_AUTH_PASSWORD=${newPassword}/g" /home/btcrpcexplorer/.config/btc-rpc-explorer.env 2>/dev/null
+    sudo sed -i "s/^BTCEXP_BITCOIND_PASS=.*/BTCEXP_BITCOIND_PASS=${newPassword}/g" /home/btcrpcexplorer/.config/btc-rpc-explorer.env
+    sudo sed -i "s/^BTCEXP_BASIC_AUTH_PASSWORD=.*/BTCEXP_BASIC_AUTH_PASSWORD=${newPassword}/g" /home/btcrpcexplorer/.config/btc-rpc-explorer.env
   fi
 
   # BTCPayServer
   if [ "${BTCPayServer}" == "on" ]; then
     echo "# changing the RPC password for BTCPAYSERVER"
-    sed -i "s/^btc.rpc.password=.*/btc.rpc.password=${newPassword}/g" /home/btcpay/.nbxplorer/Main/settings.config 2>/dev/null
+    sudo sed -i "s/^btc.rpc.password=.*/btc.rpc.password=${newPassword}/g" /home/btcpay/.nbxplorer/Main/settings.config
   fi
 
   # JoinMarket
   if [ "${joinmarket}" == "on" ]; then
     echo "# changing the RPC password for JOINMARKET"
-    sed -i "s/^rpc_password =.*/rpc_password = ${newPassword}/g" /home/joinmarket/.joinmarket/joinmarket.cfg 2>/dev/null
+    sudo sed -i "s/^rpc_password =.*/rpc_password = ${newPassword}/g" /home/joinmarket/.joinmarket/joinmarket.cfg
     echo "# changing the password for the 'joinmarket' user"
     echo "joinmarket:${newPassword}" | sudo chpasswd
   fi
 
   # ThunderHub
-  if [ "${thunderhub}" = "on" ]; then
+  if [ "${thunderhub}" == "on" ]; then
     echo "# changing the password for ThunderHub"
-    sed -i "s/^masterPassword: '.*' # Default password unless defined in account/\
-masterPassword: '${newPassword}' # Default password unless defined in account/g" \
-/mnt/hdd/app-data/thunderhub/thubConfig.yaml 2>/dev/null
+    sed -i "s/^masterPassword:.*/masterPassword: '${newPassword}'/g" /mnt/hdd/app-data/thunderhub/thubConfig.yaml
+  fi
+
+  # Tor
+  if [ "${runBehindTor}" == "on" ]; then
+      echo "# changing the password for Tor"
+
+      hashedPassword=$(sudo -u debian-tor tor --hash-password "${newPassword}")
+      sed -i "s/^HashedControlPassword .*/HashedControlPassword ${hashedPassword}/g" /etc/tor/torrc 2>/dev/null
+
+      sed -i "s/^torpassword=.*/torpassword=${newPassword}/g" /mnt/hdd/${network}/${network}.conf 2>/dev/null
+      sed -i "s/^torpassword=.*/torpassword=${newPassword}/g" /home/admin/.${network}/${network}.conf 2>/dev/null
+
+      sed -i "s/^tor.password=.*/tor.password=${newPassword}/g" /mnt/hdd/lnd/lnd.conf 2>/dev/null
+      sed -i "s/^tor.password=.*/tor.password=${newPassword}/g" /home/admin/.lnd/lnd.conf 2>/dev/null
   fi
 
   echo "# OK -> RPC Password B changed"
@@ -329,7 +380,7 @@ elif [ "${abcd}" = "x" ]; then
       exit 1
     fi
 
-    if [ "$4" != "empty-allowed" ]; then
+    if [ ${emptyAllowed} -eq 0 ]; then
 
       # password zero
       if [ ${#password1} -eq 0 ]; then

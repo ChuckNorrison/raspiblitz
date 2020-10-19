@@ -21,7 +21,7 @@ if [ "$1" = "status" ]; then
     isInstalled=$(sudo ls /etc/systemd/system/btcpayserver.service 2>/dev/null | grep -c 'btcpayserver.service')
     echo "installed=${isInstalled}"
 
-    localIP=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+    localIP=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0\|enp0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
     echo "localIP='${localIP}'"
     echo "httpsPort='23001'"
     echo "publicIP='${publicIP}'"
@@ -55,6 +55,10 @@ if [ "$1" = "status" ]; then
       source <(sudo /home/admin/config.scripts/blitz.subscriptions.letsencrypt.py domain-by-ip $ip)
       if [ ${#error} -eq 0 ]; then
         echo "ip2torDomain='${domain}'"
+        domainWarning=$(sudo /home/admin/config.scripts/blitz.subscriptions.letsencrypt.py subscription-detail ${domain} ${port} | jq -r ".warning")
+        if [ ${#domainWarning} -gt 0 ]; then
+          echo "ip2torWarn='${domainWarning}'"
+        fi
       fi
     fi
 
@@ -89,6 +93,10 @@ if [ "$1" = "menu" ]; then
       exit 0
   fi
 
+  if [ ${#ip2torWarn} -gt 0 ]; then
+    whiptail --title " Warning " --msgbox "Your IP2TOR+LetsEncrypt may have problems:\n${ip2torWarn}" 8 55
+  fi
+
   text="Local Webrowser: https://${localIP}:${httpsPort}"
 
   if [ ${#publicDomain} -gt 0 ]; then
@@ -118,11 +126,15 @@ SHA1 ${sslFingerprintTOR}
 go MAINMENU > SUBSCRIBE and add LetsEncrypt HTTPS Domain"
   elif [ ${#publicDomain} -eq 0 ]; then
     text="${text}\n
-To enable easy reachablity with normal brower from the outside
-consider adding a IP2TOR Bridge (MAINMENU > SUBSCRIBE)."
+To enable easy reachability with normal browser from the outside
+consider adding a IP2TOR Bridge: MAINMENU > SUBSCRIBE > IP2TOR"
   fi
 
-  whiptail --title " BTCPay Server " --msgbox "${text}" 15 69
+text="${text}\n
+To get the 'Connection String' to activate Lightning Payments:
+MAINMENU > LNDCREDS > EXPORT > BTCPay Server"
+
+  whiptail --title " BTCPay Server " --msgbox "${text}" 17 69
   
   /home/admin/config.scripts/blitz.lcd.sh hide
   echo "please wait ..."
@@ -336,7 +348,7 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     sudo -u btcpay git clone https://github.com/dgarage/NBXplorer.git 2>/dev/null
     cd NBXplorer
     # check https://github.com/dgarage/NBXplorer/releases
-    sudo -u btcpay git reset --hard v2.1.34
+    sudo -u btcpay git reset --hard v2.1.44
     # from the build.sh with path
     sudo -u btcpay /home/btcpay/dotnet/dotnet build -c Release NBXplorer/NBXplorer.csproj
 
@@ -419,7 +431,7 @@ EOF
     sudo -u btcpay git clone https://github.com/btcpayserver/btcpayserver.git 2>/dev/null
     cd btcpayserver
     # check https://github.com/btcpayserver/btcpayserver/releases
-    sudo -u btcpay git reset --hard v1.0.5.2
+    sudo -u btcpay git reset --hard v1.0.5.8
     # use latest commit (v1.0.4.4+) to fix build with latest dotNet
     # sudo -u btcpay git checkout f2bb24f6ab6d402af8214c67f84e08116eb650e7
     # from the build.sh with path
@@ -496,7 +508,7 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
   elif [ "$2" = "--keep-data" ]; then
     deleteData=0
   else
-    if (whiptail --title " DELETE DATA? " --yesno "Do you want want to delete\nthe BTCPay Server Data?" 8 30); then
+    if (whiptail --title " DELETE DATA? " --yesno "Do you want to delete\nthe BTCPay Server Data?" 8 30); then
       deleteData=1
    else
       deleteData=0

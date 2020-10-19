@@ -37,8 +37,8 @@ confirmation()
   return $answer
 }
 
-# get the local network IP to be displayed on the lCD
-localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+# get the local network IP to be displayed on the LCD
+localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0\|enp0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
 
 # BASIC MENU INFO
 HEIGHT=17
@@ -83,6 +83,9 @@ fi
 if [ "${loop}" == "on" ]; then
   OPTIONS+=(LOOP "Loop In/Out Service")
 fi
+if [ "${mempoolExplorer}" == "on" ]; then
+  OPTIONS+=(MEMPOOL "Mempool Space")
+fi
 if [ "${specter}" == "on" ]; then
   OPTIONS+=(SPECTER "Cryptoadvance Specter")
 fi
@@ -94,6 +97,9 @@ if [ "${faraday}" == "on" ]; then
 fi
 if [ "${bos}" == "on" ]; then
   OPTIONS+=(BOS "Balance of Satoshis")
+fi
+if [ "${pyblock}" == "on" ]; then
+  OPTIONS+=(PYBLOCK "PyBlock")
 fi
 if [ "${thunderhub}" == "on" ]; then
   OPTIONS+=(THUB "ThunderHub")
@@ -159,16 +165,34 @@ case $CHOICE in
             echo "Gathering Information (please wait) ..."
             walletLocked=$(lncli getinfo 2>&1 | grep -c "Wallet is encrypted")
             if [ ${walletLocked} -eq 0 ]; then
-              /home/admin/00infoBlitz.sh
-              echo "Screen is not refreshing itself ... press ENTER to continue."
-              read key
+              while :
+                do
+
+                # show the same info as on LCD screen
+                /home/admin/00infoBlitz.sh
+
+                # wait 6 seconds for user exiting loop
+                echo ""
+                echo -en "Screen is updating in a loop .... press 'x' now to get back to menu."
+                read -n 1 -t 6 keyPressed
+                echo -en "\rGathering information to update info ... please wait.                \n"  
+
+                # check if user wants to abort session
+                if [ "${keyPressed}" = "x" ]; then
+                  echo ""
+                  echo "Returning to menu ....."
+                  sleep 4
+                  break
+                fi
+              done
+
             else
               /home/admin/00raspiblitz.sh
               exit 0
             fi
             ;;
         TOR)
-            sudo -u bitcoin nyx
+            sudo -u debian-tor nyx
             ;;
         SCREEN)
             dialog --title 'Touchscreen Calibration' --msgbox 'Choose OK and then follow the instructions on touchscreen for calibration.\n\nBest is to use a stylus for accurate touchscreen interaction.' 9 48
@@ -195,6 +219,9 @@ case $CHOICE in
         LOOP)
             /home/admin/config.scripts/bonus.loop.sh menu
             ;;
+        MEMPOOL)
+            /home/admin/config.scripts/bonus.mempool.sh menu
+            ;;
         SPECTER)
             /home/admin/config.scripts/bonus.cryptoadvance-specter.sh menu
             ;;
@@ -206,6 +233,9 @@ case $CHOICE in
             ;;
         BOS)
             sudo /home/admin/config.scripts/bonus.bos.sh menu
+            ;;
+		PYBLOCK)
+            sudo /home/admin/config.scripts/bonus.pyblock.sh menu
             ;;
         THUB)
             sudo /home/admin/config.scripts/bonus.thunderhub.sh menu
@@ -296,9 +326,6 @@ case $CHOICE in
               read key
               sudo /home/admin/XXshutdown.sh reboot
               exit 0
-            else
-              echo "Press ENTER to return to main menu .."
-              read key
             fi
             ;;
         UPDATE)

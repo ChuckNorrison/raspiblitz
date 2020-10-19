@@ -17,22 +17,22 @@ fi
 mode="$1"
 
 # RECOMMENDED UPDATE BY RASPIBLITZ TEAM
-
-lndUpdateVersion="0.10.4-beta"
-lndUpdateComment="There is no optional update at the moment."
+# comment will be shown as "BEWARE Info" when option is choosen (can be multiple lines) 
+lndUpdateVersion="0.11.1-beta"
+lndUpdateComment="This is a main LND update with a database migration. You will not be able to downgrade again. Also not all additional apps are fully tested with the this update - but it looked good on first tests."
 
 # check who signed the release in https://github.com/lightningnetwork/lnd/releases
 # olaoluwa
-lndUpdatePGPpkeys="https://keybase.io/roasbeef/pgp_keys.asc"
-lndUpdatePGPcheck="9769140D255C759B1EB77B46A96387A57CAAE94D"
+# lndUpdatePGPpkeys="https://keybase.io/roasbeef/pgp_keys.asc"
+# lndUpdatePGPcheck="9769140D255C759B1EB77B46A96387A57CAAE94D"
 
 #joostjager
 # lndUpdatePGPpkeys="https://keybase.io/joostjager/pgp_keys.asc"
 # lndUpdatePGPcheck="D146D0F68939436268FA9A130E26BB61B76C4D3A"
 
 # bitconner 
-# lndUpdatePGPpkeys="https://keybase.io/bitconner/pgp_keys.asc"
-# lndUpdatePGPcheck="9C8D61868A7C492003B2744EE7D737B67FA592C7"
+lndUpdatePGPpkeys="https://keybase.io/bitconner/pgp_keys.asc"
+lndUpdatePGPcheck="9C8D61868A7C492003B2744EE7D737B67FA592C7"
 
 # wpaulino
 # lndUpdatePGPpkeys="https://keybase.io/wpaulino/pgp_keys.asc"
@@ -161,7 +161,7 @@ if [ "${mode}" = "verified" ]; then
   echo "fingerprint='${fingerprint}'"
 
   echo 
-  echo "# chacking gpg finger print"
+  echo "# checking gpg finger print"
   gpg --import ./pgp_keys.asc
   sleep 3
   verifyResult=$(gpg --verify manifest-v${lndUpdateVersion}.txt.sig 2>&1)

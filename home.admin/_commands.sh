@@ -30,6 +30,12 @@ function repair() {
   ./98repairMenu.sh
 }
 
+# command: sourcemode
+function sourcemode() {
+  cd /home/admin
+  ./98repairMenu.sh sourcemode
+}
+
 # command: check
 function check() {
   /home/admin/config.scripts/blitz.configcheck.py
@@ -58,6 +64,13 @@ function restart() {
 function off() {
   cd /home/admin
   ./XXshutdown.sh
+}
+
+# command: github
+# jumpng directly into the options to change branch/repo/pr
+function github() {
+  cd /home/admin
+  ./99updateMenu.sh github
 }
 
 # command: hdmi
@@ -100,13 +113,15 @@ function torthistx() {
 # command: status
 # start the status screen in the terminal
 function status() {
-  sudo -u pi /home/admin/00infoLCD.sh
+  echo "Gathering data - please wait a moment..."
+  sudo -u pi /home/admin/00infoLCD.sh --pause 0
 }
 
-# command: balance
+# command: bos
 # switch to the bos user for Balance of Satoshis
-function balance() {
-  if [ $(cat /mnt/hdd/raspiblitz.conf 2>/dev/null | grep -c "bos=on") -eq 1 ]; then
+function bos() {
+  if [ $(grep -c "bos=on" < /mnt/hdd/raspiblitz.conf) -eq 1 ]; then
+    echo "# switching to the bos user with the command: 'sudo su - bos'"
     sudo su - bos
   else
     echo "Balance of Satoshis is not installed - to install run:"
@@ -114,13 +129,110 @@ function balance() {
   fi
 }
 
-# command: jmarket
+# command: pyblock
+# switch to the pyblock user for PyBLOCK
+function pyblock() {
+  if [ $(grep -c "pyblock=on" < /mnt/hdd/raspiblitz.conf) -eq 1 ]; then
+    echo "# switching to the pyblock user with the command: 'sudo su - pyblock'"
+    sudo su - pyblock
+  else
+    echo "PyBlock is not installed - to install run:"
+    echo "/home/admin/config.scripts/bonus.pyblock.sh on"
+  fi
+}
+
+# command: jm
 # switch to the joinmarket user for the JoininBox menu
-function jmarket() {
-  if [ $(cat /mnt/hdd/raspiblitz.conf 2>/dev/null | grep -c "joinmarket=on") -eq 1 ]; then
+function jm() {
+  if [ $(grep -c "joinmarket=on"  < /mnt/hdd/raspiblitz.conf) -eq 1 ]; then
+    echo "# switching to the joinmarket user with the command: 'sudo su - joinmarket'"
     sudo su - joinmarket
   else
     echo "JoinMarket is not installed - to install run:"
     echo "sudo /home/admin/config.scripts/bonus.joinmarket.sh on"
   fi
+}
+
+# command: faraday
+# switch to the faraday user for the Faraday Service
+function faraday() {
+  if [ $(grep -c "faraday=on"  < /mnt/hdd/raspiblitz.conf) -eq 1 ]; then
+    echo "# switching to the faraday user with the command: 'sudo su - faraday'"
+    echo "# when done use command 'exit' to return to admin user"
+    echo "# see faraday options with --> frcli -help"
+    sudo su - faraday
+  else
+    echo "Faraday is not installed - to install run:"
+    echo "/home/admin/config.scripts/bonus.faraday.sh on"
+  fi
+}
+
+# command: loop
+# switch to the loop user for the Lightning Loop Service
+function loop() {
+  if [ $(grep -c "loop=on"  < /mnt/hdd/raspiblitz.conf) -eq 1 ]; then
+    echo "# switching to the loop user with the command: 'sudo su - loop'"
+    sudo su - loop
+  else
+    echo "Lightning Loop is not installed - to install run:"
+    echo "/home/admin/config.scripts/bonus.loop.sh on"
+  fi
+}
+
+# command: gettx
+# retrieve transaction from mempool or blockchain and print as JSON
+# $ gettx "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16"
+function gettx() {
+    tx_id="${1:-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16}"
+    if result=$(bitcoin-cli getrawtransaction "${tx_id}" 1 2>/dev/null); then
+        echo "${result}"
+    else
+        echo "{\"error\": \"unable to find TX\", \"tx_id\": \"${tx_id}\"}"
+        return 1
+    fi
+}
+
+# command: watchtx
+# try to retrieve transaction from mempool or blockchain until certain confirmation target
+# is reached and then exit cleanly. Default is to wait for 2 confs and to sleep for 60 secs. 
+# $ watchtx "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16" 6 30
+function watchtx() {
+    tx_id="${1}"
+    wait_n_confirmations="${2:-2}"
+    sleep_time="${3:-60}"
+
+    echo "Waiting for ${wait_n_confirmations} confirmations"
+
+    while true; do
+
+      if result=$(bitcoin-cli getrawtransaction "${tx_id}" 1 2>/dev/null); then
+        confirmations=$(echo "${result}" | jq .confirmations)
+
+        if [[ "${confirmations}" -ge "${wait_n_confirmations}" ]]; then
+          printf "confirmations: ${confirmations} - target reached!\n"
+          return 0
+        else
+          printf "confirmations: ${confirmations} - "
+        fi
+
+      else
+        printf "unable to find TX - "
+      fi
+
+      printf "sleeping for ${sleep_time} seconds...\n"
+      sleep ${sleep_time}
+
+    done
+}
+
+# command: notifyme
+# A wrapper for blitz.notify.sh that will send a notification using the configured 
+# method and settings. 
+# This makes sense when waiting for commands to finish and then sending a notification.
+# $ notifyme "Hello there..!"
+# $ ./run_job_which_takes_long.sh && notifyme "I'm done."
+# $ ./run_job_which_takes_long.sh && notifyme "success" || notifyme "fail"
+function notifyme() {
+    content="${1:-Notified}"
+    /home/admin/config.scripts/blitz.notify.sh send "${content}"
 }

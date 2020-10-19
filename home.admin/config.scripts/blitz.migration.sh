@@ -29,7 +29,7 @@ isBTRFS=$(lsblk -o FSTYPE,MOUNTPOINT | grep /mnt/hdd | awk '$1=$1' | cut -d " " 
 defaultZipPath="/mnt/hdd/temp"
 
 # SCP download and upload links
-localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0' | grep 'eth0\|wlan0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
+localip=$(ip addr | grep 'state UP' -A2 | egrep -v 'docker0|veth' | grep 'eth0\|wlan0\|enp0' | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
 scpDownload="scp -r 'bitcoin@${localip}:${defaultZipPath}/raspiblitz-*.tar.gz' ./"
 scpUpload="scp -r './raspiblitz-*.tar.gz bitcoin@${localip}:${defaultZipPath}'"
 
@@ -76,7 +76,7 @@ if [ "$1" = "export" ]; then
   fi
 
   # clean old backups from temp
-  rm /hdd/temp/raspiblitz-*.tar.gz 2>/dev/null
+  rm -f /hdd/temp/raspiblitz-*.tar.gz 2>/dev/null
 
   # get date stamp
   datestamp=$(date "+%y-%m-%d-%H-%M")
@@ -317,7 +317,7 @@ if [ "$1" = "import-gui" ]; then
   esac
 
   # now temp mount the HDD/SSD
-  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddCandidate})
+  source <(sudo /home/admin/config.scripts/blitz.datadrive.sh tempmount ${hddPartitionCandidate})
   if [ ${#error} -gt 0 ]; then
     echo "FAIL: Was not able to temp mount the HDD/SSD --> ${error}"
     exit 1

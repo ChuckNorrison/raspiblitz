@@ -18,7 +18,8 @@ fi
 if [ "$1" = "menu" ]; then
   dialog --title " Info Loop Service " --msgbox "\n\
 Usage and examples: https://github.com/lightninglabs/loop#loop-out-swaps\n
-Use the command 'loop' on the terminal to see the options.
+Use the shortcut 'loop' in the terminal to switch to the dedicated user.\n
+Type 'loop' again to see the available options.
 " 10 56
   exit 0
 fi
@@ -33,25 +34,59 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
   
   isInstalled=$(sudo ls /etc/systemd/system/loopd.service 2>/dev/null | grep -c 'loopd.service')
   if [ ${isInstalled} -eq 0 ]; then
+
+    # install Go
     /home/admin/config.scripts/bonus.go.sh on
     
     # get Go vars
     source /etc/profile
 
-    cd /home/bitcoin
-    sudo -u bitcoin git clone https://github.com/lightninglabs/loop.git
-    cd /home/bitcoin/loop
+    # create dedicated user
+    sudo adduser --disabled-password --gecos "" loop
+
+    # set PATH for the user
+    sudo bash -c "echo 'PATH=\$PATH:/home/loop/go/bin/' >> /home/loop/.profile"
+
+    # make sure symlink to central app-data directory exists ***"
+    sudo rm -rf /home/loop/.lnd  # not a symlink.. delete it silently
+    # create symlink
+    sudo ln -s /mnt/hdd/app-data/lnd/ /home/loop/.lnd
+
+    # sync all macaroons and unix groups for access
+    /home/admin/config.scripts/lnd.credentials.sh sync
+    # macaroons will be checked after install
+
+    # add user to group with admin access to lnd
+    sudo /usr/sbin/usermod --append --groups lndadmin loop
+    # add user to group with readonly access on lnd
+    sudo /usr/sbin/usermod --append --groups lndreadonly loop
+    # add user to group with invoice access on lnd
+    sudo /usr/sbin/usermod --append --groups lndinvoice loop
+    # add user to groups with all macaroons
+    sudo /usr/sbin/usermod --append --groups lndinvoices loop
+    sudo /usr/sbin/usermod --append --groups lndchainnotifier loop
+    sudo /usr/sbin/usermod --append --groups lndsigner loop
+    sudo /usr/sbin/usermod --append --groups lndwalletkit loop
+    sudo /usr/sbin/usermod --append --groups lndrouter loop
+
+    # install from source
+    cd /home/loop
+    sudo -u loop git clone https://github.com/lightninglabs/loop.git
+    cd /home/loop/loop
     # https://github.com/lightninglabs/loop/releases
-    source <(sudo -u admin /home/admin/config.scripts/lnd.update.sh info)
-    if [ ${lndInstalledVersionMain} -lt 10 ]; then
-      sudo -u bitcoin git reset --hard v0.5.1-beta
-    else
-      sudo -u bitcoin git reset --hard v0.6.5-beta
-    fi
-    cd /home/bitcoin/loop/cmd
-    go install ./...
-    
+    sudo -u loop git reset --hard v0.8.1-beta
+    cd /home/loop/loop/cmd
+    sudo -u loop /usr/local/go/bin/go install ./... || exit 1
+
     # make systemd service
+    if [ "${runBehindTor}" = "on" ]; then
+      echo "Will connect to Loop server through Tor"
+      proxy="--server.proxy=127.0.0.1:9050"
+    else
+      echo "Will connect to Loop server through clearnet"
+      proxy=""
+    fi
+
     # sudo nano /etc/systemd/system/loopd.service 
     echo "
 [Unit]
@@ -59,10 +94,10 @@ Description=Loopd Service
 After=lnd.service
 
 [Service]
-WorkingDirectory=/home/bitcoin/loop
-ExecStart=/usr/local/gocode/bin/loopd --network=${chain}net
-User=bitcoin
-Group=bitcoin
+WorkingDirectory=/home/loop/loop
+ExecStart=/home/loop/go/bin/loopd --network=${chain}net ${proxy}
+User=loop
+Group=loop
 Type=simple
 KillMode=process
 TimeoutSec=60
@@ -82,7 +117,7 @@ WantedBy=multi-user.target
   # setting value in raspi blitz config
   sudo sed -i "s/^loop=.*/loop=on/g" /mnt/hdd/raspiblitz.conf
   
-  isInstalled=$(loop | grep -c loop)
+  isInstalled=$(sudo -u loop /home/loop/go/bin/loop | grep -c loop)
   if [ ${isInstalled} -gt 0 ] ; then
     echo "Find info on how to use on https://github.com/lightninglabs/loop#loop-out-swaps"
   else
@@ -102,12 +137,12 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
   isInstalled=$(sudo ls /etc/systemd/system/loopd.service 2>/dev/null | grep -c 'loopd.service')
   if [ ${isInstalled} -eq 1 ]; then
     echo "*** REMOVING LIGHTNING LOOP SERVICE ***"
+    # remove the systemd service
     sudo systemctl stop loopd
     sudo systemctl disable loopd
     sudo rm /etc/systemd/system/loopd.service
-    sudo rm -rf /home/bitcoin/loop
-    sudo rm  /usr/local/gocode/bin/loop
-    sudo rm  /usr/local/gocode/bin/loopd
+    # delete user and it's home directory
+    sudo userdel -rf loop
     echo "OK, the Loop Service is removed."
   else 
     echo "Loop is not installed."
