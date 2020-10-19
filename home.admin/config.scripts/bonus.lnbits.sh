@@ -128,6 +128,7 @@ if [ "$1" = "status" ]; then
   else
     echo "installed=0"
   fi
+  read -n 1 -s -r -p "Press any key to continue"
   exit 0
 fi
 
@@ -216,6 +217,7 @@ if [ "$1" = "sync" ] || [ "$1" = "repo" ]; then
   # restart lnbits service
   sudo systemctl restart lnbits
   echo "# server is restarting ... maybe takes some seconds until available"
+  read -n 1 -s -r -p "Press any key to continue" 
   exit 0
 fi
 
@@ -282,6 +284,8 @@ if [ "$1" = "1" ] || [ "$1" = "on" ]; then
     sudo -u lnbits python3 -m venv venv
     #sudo -u lnbits /home/lnbits/lnbits/venv/bin/pip install hypercorn
     sudo -u lnbits ./venv/bin/pip install -r requirements.txt
+
+    read -n 1 -s -r -p "Press any key to continue"
 
     # process assets
     echo "# processing assets"
@@ -364,6 +368,7 @@ EOF
     # make sure to keep in sync with internet.tor.sh script
     /home/admin/config.scripts/internet.hiddenservice.sh lnbits 80 5002 443 5003
   fi
+  read -n 1 -s -r -p "Press any key to continue"
   exit 0
 fi
 
@@ -422,8 +427,10 @@ if [ "$1" = "0" ] || [ "$1" = "off" ]; then
   else
     echo "LNbits is not installed."
   fi
+  read -n 1 -s -r -p "Press any key to continue"
   exit 0
 fi
 
 echo "FAIL - Unknown Parameter $1"
+read -n 1 -s -r -p "Press any key to continue"
 exit 1
