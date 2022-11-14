@@ -213,6 +213,9 @@ Check 'sudo nginx -t' for a detailed error message.
     echo
     echo "To start directly from laptop terminal use:"
     echo "electrum --oneserver --server ${localip}:${portSSL}:s"
+    if [ ${#dynDomain} -gt 0 ]; then
+      echo "- or use your Domain '${dynDomain}' from outside, if forwarded '${portSSL}' correctly"
+    fi    
     if [ ${TorRunning} -eq 1 ]; then
       echo
       echo "The Tor Hidden Service address for electrs is (see LCD for QR code):"
